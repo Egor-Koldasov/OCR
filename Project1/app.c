@@ -3,6 +3,7 @@
 #include "png_convert.h"
 #include "error_exit.h"
 #include "base64.h"
+#include "buffer_segments.h"
 
 PBITMAPINFO CreateBitmapInfoStruct(HWND hwnd, HBITMAP hBmp)
 {
@@ -341,6 +342,17 @@ int main() {
 	GlobalUnlock(hMem);
 	if (!SetClipboardData(CF_TEXT, hMem)) errorExit(NULL);
 
+	short nullFound = 0;
+	for (int ii = 0; ii < 20 || !nullFound; ii++) {
+		printf("Searching null with char \"%c\"\n", readFileBuffer[ii]);
+		if (readFileBuffer[ii] == '\0') {
+			nullFound = 1;
+			printf("Null found at %d\n", ii);
+		}
+	}
+	printf("Null not found\n");
+
+	buffer_segments buff_segs = readBufferSegments(readFileBuffer, bmpFileSize);
 
 	CloseClipboard();
 	getchar();

@@ -142,12 +142,14 @@
   <ItemGroup>
     <ClCompile Include="app.c" />
     <ClCompile Include="base64.c" />
+    <ClCompile Include="buffer_segments.c" />
     <ClCompile Include="error_exit.c" />
     <ClCompile Include="http.c" />
     <ClCompile Include="png_convert.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="base64.h" />
+    <ClInclude Include="buffer_segments.h" />
     <ClInclude Include="error_exit.h" />
     <ClInclude Include="http.h" />
     <ClInclude Include="png_convert.h" />
