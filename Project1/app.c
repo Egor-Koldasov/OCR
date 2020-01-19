@@ -79,7 +79,7 @@ void saveBitmapToFile(char * filePath, char * buffer, int bufferSize) {
 	fclose(fileHandle);
 }
 
-char* createImageBuffer(PBITMAPINFO pbi, HBITMAP hBMP, HDC hDC, int* bufferSize)
+char* createImageBuffer(PBITMAPINFO pbi, HBITMAP hBMP, HDC hDC, int* bufferSize, LPBYTE * lpBitsArg)
 {
 	// HANDLE hf;                 // file handle  
 	BITMAPFILEHEADER hdr;       // bitmap file-header  
@@ -92,7 +92,7 @@ char* createImageBuffer(PBITMAPINFO pbi, HBITMAP hBMP, HDC hDC, int* bufferSize)
 	// LPTSTR pszFile;
 
 	pbih = &pbi->bmiHeader;
-	lpBits = (LPBYTE)GlobalAlloc(GMEM_FIXED, pbih->biSizeImage);
+	*lpBitsArg = lpBits = (LPBYTE)GlobalAlloc(GMEM_FIXED, pbih->biSizeImage);
 
 	if (!lpBits) errorExit("GlobalAlloc");
 
@@ -306,7 +306,8 @@ int main() {
 
 	PBITMAPINFO bitmapInfo = CreateBitmapInfoStruct(NULL, clipboardBitmapHandle);
 	int bitmapBufferSize;
-	char* bitmapBuffer = createImageBuffer(bitmapInfo, clipboardBitmapHandle, deviceContext, &bitmapBufferSize);
+	LPBYTE lpBits;
+	char* bitmapBuffer = createImageBuffer(bitmapInfo, clipboardBitmapHandle, deviceContext, &bitmapBufferSize, &lpBits);
 	printf("clipboard bitmap buffer total size: %d\n", bitmapBufferSize);
 	// Test file creation
 	char * testFileName = "D:\\test.BMP";
@@ -317,42 +318,23 @@ int main() {
 	fopen_s(&fileHandle, testFileName, "rb");
 	char * readFileBuffer = malloc(bmpFileSize);
 	fread_s(readFileBuffer, bmpFileSize, sizeof(char), bmpFileSize, fileHandle);
-	/*
-	// print the whole buffer
-	fwrite(readFileBuffer, sizeof(readFileBuffer[0]), bmpFileSize, stdout);
-	*/
 
+	MEMORY_WRITER_STATE png = bitmapToPng(bitmapInfo->bmiHeader.biWidth, bitmapInfo->bmiHeader.biHeight, 32, lpBits);
 	int base64BitmapSize;
-	// char* base64Bitmap = base64_encode(&clipboardBitmapHandle, (bitmapBufferSize / sizeof(char)) - 1, &base64BitmapSize);
-	// MEMORY_WRITER_STATE png = bitmapToPng(bitmapInfo->bmiHeader.biWidth, bitmapInfo->bmiHeader.biHeight, 8, bitmapBuffer);
-	// printf("png.buffer: %s\n", png.buffer);
-	// char* base64Bitmap = base64_encode(png.buffer, png.bufsize, &base64BitmapSize);
-	// printf("base64 bitmapBuffer: %s\n", base64Bitmap);
+	char* base64Bitmap = base64_encode(png.buffer, png.bufsize, &base64BitmapSize);
 
 	saveBitmapToFile("D:\\test_1.BMP", bitmapBuffer, bitmapBufferSize);
 
 	// paste url to clipboard
 	EmptyClipboard();
-	char * base64ImagePrefix = "data:image/png;base64,";
+	char * base64ImagePrefix = "data:image/bmp;base64,";
 	const base64ImagePrefixLen = strlen(base64ImagePrefix);
-	const size_t len = bmpFileSize + base64ImagePrefixLen + 1;
+	const size_t len = base64BitmapSize + base64ImagePrefixLen + 1;
 	HGLOBAL hMem = GlobalAlloc(GMEM_MOVEABLE, len);
 	memcpy(GlobalLock(hMem), base64ImagePrefix, base64ImagePrefixLen);
-	memcpy((size_t) GlobalLock(hMem) + base64ImagePrefixLen, readFileBuffer, bmpFileSize);
+	memcpy((size_t) GlobalLock(hMem) + base64ImagePrefixLen, base64Bitmap, base64BitmapSize);
 	GlobalUnlock(hMem);
 	if (!SetClipboardData(CF_TEXT, hMem)) errorExit(NULL);
-
-	short nullFound = 0;
-	for (int ii = 0; ii < 20 || !nullFound; ii++) {
-		printf("Searching null with char \"%c\"\n", readFileBuffer[ii]);
-		if (readFileBuffer[ii] == '\0') {
-			nullFound = 1;
-			printf("Null found at %d\n", ii);
-		}
-	}
-	printf("Null not found\n");
-
-	buffer_segments buff_segs = readBufferSegments(readFileBuffer, bmpFileSize);
 
 	CloseClipboard();
 	getchar();

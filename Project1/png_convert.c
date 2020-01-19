@@ -9,7 +9,6 @@ typedef struct {
 } MEMORY_WRITER_STATE;
 // This function will be used for writing png data 
 static void write_data_memory(png_structp png_ptr, png_bytep data, png_uint_32 length) {
-	printf("Memory length: %d\n", length);
 	MEMORY_WRITER_STATE * p = png_get_io_ptr(png_ptr);
 	png_uint_32 nsize = p->bufsize + length;
 
@@ -95,8 +94,13 @@ MEMORY_WRITER_STATE bitmapToPng(int width, int height, int bit_depth, char* bmp_
 		errorExit("png_destroy_write_struct");
 	}
 
+	if (setjmp(png_jmpbuf(png_ptr))) {
+		png_destroy_write_struct(&png_ptr, &info_ptr);
+		errorExit("png error jmp");
+	}
+
 	// 2. Set png info like width, height, bit depth and color type
-	png_set_IHDR(png_ptr, info_ptr, width, height, bit_depth, PNG_COLOR_TYPE_RGB, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+	png_set_IHDR(png_ptr, info_ptr, width, height, 8, PNG_COLOR_TYPE_RGB_ALPHA, PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
 
 	MEMORY_WRITER_STATE memory_writer_state;
 	memory_writer_state.buffer = NULL;
@@ -107,18 +111,21 @@ MEMORY_WRITER_STATE bitmapToPng(int width, int height, int bit_depth, char* bmp_
 //    I assumed the original array is 1d
 	png_bytepp row_pointers = png_malloc(png_ptr, sizeof(png_bytepp) * height);
 	for (int i = 0; i < height; i++) {
-		row_pointers[i] = png_malloc(png_ptr, width);
+		row_pointers[i] = png_malloc(png_ptr, width * 4);
 	}
 	for (int hi = 0; hi < height; hi++) {
-		for (int wi = 0; wi < width; wi++) {
+		for (int wi = 0; wi < width * 4; wi++) {
 			// bmp_source is source data that we convert to png
-			row_pointers[hi][wi] = bmp_source[wi + width * hi];
+			row_pointers[hi][wi] = bmp_source[(width * (height - 1 - hi)) * 4 + wi];
 		}
 	}
 	// 4. Write png file
 	printf("png height: %d width: %d\n", height, width);
 	printf("png_write_info\n");
 	png_write_info(png_ptr, info_ptr);
+	png_set_bgr(png_ptr);
+	// png_set_invert_alpha(png_ptr);
+	/* Set the true bit depth of the image data */
 	printf("png_write_image\n");
 	png_write_image(png_ptr, row_pointers);
 	printf("png_write_end\n");
